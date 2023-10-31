@@ -1,0 +1,151 @@
+import { ShowErrorObject } from "@/app/types";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import TextInput from "../TextInput";
+import { BiLoaderCircle } from "react-icons/bi";
+import { useUser } from "@/app/context/user";
+import { useGeneralStore } from "@/app/stores/general";
+
+export default function Register() {
+  let { setIsLoginOpen } = useGeneralStore();
+
+  const contextUser = useUser();
+  const router = useRouter();
+
+  const [loading, setLoading] = useState<boolean>(false);
+  const [name, setName] = useState<string | "">("");
+  const [email, setEmail] = useState<string | "">("");
+  const [password, setPassword] = useState<string | "">("");
+  const [confirmPassword, setConfirmPassword] = useState<string | "">("");
+  const [error, setError] = useState<ShowErrorObject | null>(null);
+
+  //register 정보를 제대로 입력했는 지 확인,
+  //에러를 만들때는 이렇게 setError를 통해 구현, 에러 타입에 맞춘 내용 출력
+  const showError = (type: string) => {
+    //type검사를 하는 이유..? => 밑에
+    if (error && Object.entries(error).length > 0 && error?.type == type) {
+      return error.message;
+    }
+    return "";
+  };
+
+  const validate = () => {
+    setError(null);
+    let isError = false;
+    //이메일 검사용 정규 표현식
+    const reg =
+      /^[0-9a-zA-Z]([-_.]?[0-9a-zA-Z])*@[0-9a-zA-Z]([-_.]?[0-9a-zA-Z])*\.[a-zA-Z]{2,3}$/i;
+
+    if (!name) {
+      setError({ type: "name", message: "A Name is required" });
+      isError = true;
+    } else if (!email) {
+      setError({ type: "email", message: "A Email is required" });
+      isError = true;
+    } else if (!reg.test(email)) {
+      setError({ type: "email", message: "The Email is not valid" });
+      isError = true;
+    } else if (!password) {
+      setError({ type: "password", message: "A Password is required" });
+      isError = true;
+    } else if (password.length < 8) {
+      setError({
+        type: "password",
+        message: "The Password needs to be longer",
+      });
+      isError = true;
+    } else if (password != confirmPassword) {
+      setError({ type: "password", message: "The Passwords do not match" });
+      isError = true;
+    }
+    return isError;
+  };
+
+  const register = async () => {
+    let isError = validate();
+    if (isError) return;
+    if (!contextUser) return;
+
+    try {
+      setLoading(true);
+      await contextUser.register(name, email, password);
+      setLoading(false);
+      setIsLoginOpen(false);
+      router.refresh();
+    } catch (error) {
+      console.log(error);
+      setLoading(false);
+      alert(error);
+    }
+  };
+
+  return (
+    <>
+      <div>
+        <h1 className="text-center text-[28px] mb-4 font-bold">Register</h1>
+
+        <div className="px-6 pb-2">
+          <TextInput
+            string={name}
+            placeholder="Name"
+            onUpdate={setName}
+            inputType="text"
+            error={showError("name")}
+          />
+        </div>
+
+        <div className="px-6 pb-2">
+          <TextInput
+            string={email}
+            placeholder="Email address"
+            onUpdate={setEmail}
+            inputType="email"
+            error={showError("email")}
+          />
+        </div>
+
+        <div className="px-6 pb-2">
+          <TextInput
+            string={password}
+            placeholder="Password address"
+            onUpdate={setPassword}
+            inputType="password"
+            error={showError("password")}
+          />
+        </div>
+
+        <div className="px-6 pb-2">
+          <TextInput
+            string={confirmPassword}
+            placeholder="Confirm Password"
+            onUpdate={setConfirmPassword}
+            inputType="password"
+            error={showError("password")}
+          />
+        </div>
+
+        <div className="px-6 pb-2 mt-6">
+          <button
+            disabled={loading}
+            onClick={() => register()}
+            className={`flex items-center justify-center w-full text-[17px] font-semibold text-white py-3 rounded-sm ${
+              !name || !email || !password || !confirmPassword
+                ? "bg-gray-200"
+                : "bg-[#F02C56]"
+            }`}
+          >
+            {loading ? (
+              <BiLoaderCircle
+                className="animate-spin"
+                color="#ffffff"
+                size={25}
+              />
+            ) : (
+              "Register"
+            )}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
